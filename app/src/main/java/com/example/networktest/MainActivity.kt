@@ -18,15 +18,16 @@ import okhttp3.Request
 import java.io.BufferedReader
 import java.io.InputStream
 import java.io.InputStreamReader
-import java.net.URL
 import java.net.HttpURLConnection
+import java.net.URL
 
 class MainActivity : AppCompatActivity() {
-    private val DEBUG_TAG = "NetworkStatusExample"
+    private lateinit var connMgr: ConnectivityManager
 
-    lateinit var connMgr: ConnectivityManager
+    private lateinit var requestNetworkCallback: ConnectivityManager.NetworkCallback
 
-    lateinit var requestNetworkCallback: ConnectivityManager.NetworkCallback
+    var mobileNetwork: Network? = null
+    var iotNetwork: Network? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,7 +41,7 @@ class MainActivity : AppCompatActivity() {
                     "DefaultNetwork",
                     "onAvailable Network : ${network.networkHandle}"
                 )
-                printNetworkInfo(network)
+                printNetworkInfo(network, "DefaultNetwork")
             }
 
             override fun onLost(network: Network) {
@@ -55,9 +56,18 @@ class MainActivity : AppCompatActivity() {
         })
 
         findViewById<Button>(R.id.get_all_network).setOnClickListener {
-
+            // API 29 이후부터 deprecated
             connMgr.allNetworks.iterator().forEach {
-                printNetworkInfo(it)
+                printNetworkInfo(it, "All Network")
+            }
+
+            connMgr.activeNetwork?.let {
+                printNetworkInfo(it, "Active Network")
+            }
+
+            Log.d("Bound Network", "Bound Network : ${connMgr.boundNetworkForProcess}")
+            connMgr.boundNetworkForProcess?.let {
+                printNetworkInfo(it, "Bound Network")
             }
         }
 
@@ -74,19 +84,20 @@ class MainActivity : AppCompatActivity() {
                 .setNetworkSpecifier(specifier)
                 .build()
 
-
             requestNetworkCallback = object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) {
                     super.onAvailable(network)
+                    iotNetwork = network
                     Log.d(
                         "AdditionalNetwork",
                         "onAvailable Network : ${network.networkHandle}"
                     )
 
-                    printNetworkInfo(network)
+                    printNetworkInfo(network, "AdditionalNetwork")
                     CoroutineScope(Dispatchers.IO).launch {
                         withContext(Dispatchers.IO) {
-                            val conn = network.openConnection(URL("http://192.168.1.1:80/osc/info")) as HttpURLConnection
+                            val conn =
+                                network.openConnection(URL("http://192.168.1.1:80/osc/info")) as HttpURLConnection
 
                             conn.requestMethod = "GET"
                             conn.connect()
@@ -109,7 +120,7 @@ class MainActivity : AppCompatActivity() {
                 override fun onLost(network: Network) {
                     super.onLost(network)
                     Log.d("AdditionalNetwork", "onLost Network : ${network.networkHandle}")
-                    printNetworkInfo(network)
+                    printNetworkInfo(network, "AdditionalNetwork")
                 }
 
                 override fun onUnavailable() {
@@ -149,13 +160,56 @@ class MainActivity : AppCompatActivity() {
                 response.body?.let { it1 -> Log.d("cupix network", it1.string()) }
             }
         }
+
+        findViewById<Button>(R.id.use_mobile).setOnClickListener {
+            val request = NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .addTransportType(NetworkCapabilities.TRANSPORT_CELLULAR)
+                .build()
+
+            // registerNetworkCallback 은 OS 강제연결 상황에서 콜백을 등록하지 못하는 듯. 이거는 콜백등록해서 객체를 얻어옴.
+            connMgr.requestNetwork(
+                request,
+                object : ConnectivityManager.NetworkCallback() {
+                    override fun onAvailable(network: Network) {
+                        super.onAvailable(network)
+                        Log.d("MobileNetwork", "onAvailable")
+                        printNetworkInfo(network, "MobileNetwork")
+                        mobileNetwork = network
+                    }
+
+                    override fun onLost(network: Network) {
+                        super.onLost(network)
+                        Log.d("MobileNetwork", "onLost")
+                    }
+
+                    override fun onUnavailable() {
+                        super.onUnavailable()
+                        Log.d("MobileNetwork", "onUnavailable")
+                    }
+                })
+        }
+
+        findViewById<Button>(R.id.bind_iot).setOnClickListener {
+            iotNetwork?.let {
+                Log.d("bindProcess","BindProcess To Iot")
+                connMgr.bindProcessToNetwork(it)
+            }
+        }
+
+        findViewById<Button>(R.id.bind_mobile).setOnClickListener {
+            mobileNetwork?.let {
+                Log.d("bindProcess","BindProcess To Mobile")
+                connMgr.bindProcessToNetwork(it)
+            }
+        }
     }
 
-    private fun printNetworkInfo(network: Network) {
+    private fun printNetworkInfo(network: Network, tag: String) {
         // API 31 level 이상 부터 사용가능
         val capability: NetworkCapabilities? = connMgr.getNetworkCapabilities(network)
         Log.d(
-            "All_Networks", "--- capability : ${capability?.capabilities?.toString()} " +
+            tag, "--- capability : ${capability?.capabilities?.toString()} " +
                     "\ntransportInfo : ${capability?.transportInfo} " +
                     "\nnetworkSpecifier : ${capability?.networkSpecifier} " +
                     //"\nisAvailable : ${capability?.enterpriseIds} " +       // API Level 33 부터 사용 가능
@@ -165,7 +219,8 @@ class MainActivity : AppCompatActivity() {
         // API 31 level 이상 부터 사용가능
         val linkProperties: LinkProperties? = connMgr.getLinkProperties(network)
         Log.d(
-            "All_Networks", " --- linkProperties dhcpServerAddress : ${linkProperties?.dhcpServerAddress} " +
+            tag,
+            " --- linkProperties dhcpServerAddress : ${linkProperties?.dhcpServerAddress} " +
                     "\ndnsServers : ${linkProperties?.dnsServers} " +
                     "\ndomains : ${linkProperties?.domains} " +
                     "\nhttpProxy : ${linkProperties?.httpProxy} " +
@@ -179,7 +234,7 @@ class MainActivity : AppCompatActivity() {
         // API 29 이후부터 deprecated
         val info: NetworkInfo? = connMgr.getNetworkInfo(network)
         Log.d(
-            "All_Networks", "--- Network handle : ${network.networkHandle} " +
+            tag, "--- Network handle : ${network.networkHandle} " +
                     "\ntypeName : ${info?.typeName} " +
                     "\nisConnected : ${info?.isConnected} " +
                     "\nisAvailable : ${info?.isAvailable} " +
