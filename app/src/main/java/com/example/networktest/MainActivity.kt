@@ -63,6 +63,7 @@ class MainActivity : AppCompatActivity() {
 
             connMgr.activeNetwork?.let {
                 printNetworkInfo(it, "Active Network")
+                Log.d("Active Network","connMgr.isActiveNetworkMetered :${connMgr.isActiveNetworkMetered}")
             }
 
             Log.d("Bound Network", "Bound Network : ${connMgr.boundNetworkForProcess}")
@@ -74,8 +75,10 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.request_network).setOnClickListener {
             val specifier = WifiNetworkSpecifier.Builder()
-                .setSsid("THETAYN14100547.OSC")
-                .setWpa2Passphrase("14100547")
+                //.setSsid("THETAYN14100547.OSC")
+                //.setWpa2Passphrase("14100547")
+                .setSsid("ONE X2 JU3Y9S.OSC")
+                .setWpa2Passphrase("88888888")
                 .build()
 
             val request = NetworkRequest.Builder()
@@ -94,7 +97,7 @@ class MainActivity : AppCompatActivity() {
                     )
 
                     printNetworkInfo(network, "AdditionalNetwork")
-                    CoroutineScope(Dispatchers.IO).launch {
+                    /*CoroutineScope(Dispatchers.IO).launch {
                         withContext(Dispatchers.IO) {
                             val conn =
                                 network.openConnection(URL("http://192.168.1.1:80/osc/info")) as HttpURLConnection
@@ -114,7 +117,7 @@ class MainActivity : AppCompatActivity() {
                             br.close()
                             Log.d("response", response.toString())
                         }
-                    }
+                    }*/
                 }
 
                 override fun onLost(network: Network) {
@@ -136,6 +139,51 @@ class MainActivity : AppCompatActivity() {
                 25000
             )
         }
+
+        findViewById<Button>(R.id.register_network).setOnClickListener {
+            val specifier = WifiNetworkSpecifier.Builder()
+                .setSsid("ONE X2 JU3Y9S.OSC")
+                .setWpa2Passphrase("88888888")
+                .build()
+
+            val request = NetworkRequest.Builder()
+                .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+                .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .setNetworkSpecifier(specifier)
+                .build()
+
+            requestNetworkCallback = object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    super.onAvailable(network)
+                    iotNetwork = network
+                    Log.d(
+                        "AdditionalNetwork",
+                        "onAvailable Network : ${network.networkHandle}"
+                    )
+
+                    printNetworkInfo(network, "AdditionalNetwork")
+                }
+
+                override fun onLost(network: Network) {
+                    super.onLost(network)
+                    Log.d("AdditionalNetwork", "onLost Network : ${network.networkHandle}")
+                    printNetworkInfo(network, "AdditionalNetwork")
+                }
+
+                override fun onUnavailable() {
+                    super.onUnavailable()
+                    Log.d("AdditionalNetwork", "onUnavailable")
+                }
+            }
+
+            connMgr.registerNetworkCallback(
+                request,
+                requestNetworkCallback,
+                Handler(Looper.getMainLooper()),
+            )
+        }
+
+
         //http://192.168.1.1:80/osc/info
         findViewById<Button>(R.id.ost_request).setOnClickListener {
             CoroutineScope(Dispatchers.IO).launch {
