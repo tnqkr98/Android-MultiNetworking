@@ -216,7 +216,7 @@ class MainActivity : AppCompatActivity() {
                     "\nownerUid : ${capability?.ownerUid} "
         )
 
-        // API 31 level 이상 부터 사용가능
+        // API 31 level 이상 부터 사용 가능
         val linkProperties: LinkProperties? = connMgr.getLinkProperties(network)
         Log.d(
             tag,
