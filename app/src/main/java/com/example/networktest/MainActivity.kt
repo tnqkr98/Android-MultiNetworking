@@ -12,12 +12,9 @@ import androidx.appcompat.app.AppCompatActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.io.BufferedReader
-import java.io.InputStream
-import java.io.InputStreamReader
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -63,7 +60,10 @@ class MainActivity : AppCompatActivity() {
 
             connMgr.activeNetwork?.let {
                 printNetworkInfo(it, "Active Network")
-                Log.d("Active Network","connMgr.isActiveNetworkMetered :${connMgr.isActiveNetworkMetered}")
+                Log.d(
+                    "Active Network",
+                    "connMgr.isActiveNetworkMetered :${connMgr.isActiveNetworkMetered}"
+                )
             }
 
             Log.d("Bound Network", "Bound Network : ${connMgr.boundNetworkForProcess}")
@@ -74,30 +74,37 @@ class MainActivity : AppCompatActivity() {
 
 
         findViewById<Button>(R.id.request_network).setOnClickListener {
-            val specifier = WifiNetworkSpecifier.Builder()
-                //.setSsid("THETAYN14100547.OSC")
-                //.setWpa2Passphrase("14100547")
-                .setSsid("ONE X2 JU3Y9S.OSC")
-                .setWpa2Passphrase("88888888")
-                .build()
+            CoroutineScope(Dispatchers.IO).launch {
+                val specifier = WifiNetworkSpecifier.Builder()
+                    .setSsid("THETAYN14100547.OSC")
+                    .setWpa2Passphrase("14100547")
+                    //.setSsid("ONE X2 JU3Y9S.OSC")
+                    //.setWpa2Passphrase("88888888")
+                    .build()
 
-            val request = NetworkRequest.Builder()
+                val request = NetworkRequest.Builder()
+                    .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+                    .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                    .setNetworkSpecifier(specifier)
+                    .build()
+
+                /*val request2 = NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
                 .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
-                .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                .setNetworkSpecifier(specifier)
-                .build()
+                .addTransportType(NetworkCapabilities.TRANSPORT_CELLULAR)
+                .build()*/
 
-            requestNetworkCallback = object : ConnectivityManager.NetworkCallback() {
-                override fun onAvailable(network: Network) {
-                    super.onAvailable(network)
-                    iotNetwork = network
-                    Log.d(
-                        "AdditionalNetwork",
-                        "onAvailable Network : ${network.networkHandle}"
-                    )
+                requestNetworkCallback = object : ConnectivityManager.NetworkCallback() {
+                    override fun onAvailable(network: Network) {
+                        super.onAvailable(network)
+                        iotNetwork = network
+                        Log.d(
+                            "AdditionalNetwork",
+                            "onAvailable Network : ${network.networkHandle}"
+                        )
 
-                    printNetworkInfo(network, "AdditionalNetwork")
-                    /*CoroutineScope(Dispatchers.IO).launch {
+                        printNetworkInfo(network, "AdditionalNetwork")
+                        /*CoroutineScope(Dispatchers.IO).launch {
                         withContext(Dispatchers.IO) {
                             val conn =
                                 network.openConnection(URL("http://192.168.1.1:80/osc/info")) as HttpURLConnection
@@ -118,32 +125,35 @@ class MainActivity : AppCompatActivity() {
                             Log.d("response", response.toString())
                         }
                     }*/
+                    }
+
+                    override fun onLost(network: Network) {
+                        super.onLost(network)
+                        Log.d("AdditionalNetwork", "onLost Network : ${network.networkHandle}")
+                        printNetworkInfo(network, "AdditionalNetwork")
+                    }
+
+                    override fun onUnavailable() {
+                        super.onUnavailable()
+                        Log.d("AdditionalNetwork", "onUnavailable")
+                    }
                 }
 
-                override fun onLost(network: Network) {
-                    super.onLost(network)
-                    Log.d("AdditionalNetwork", "onLost Network : ${network.networkHandle}")
-                    printNetworkInfo(network, "AdditionalNetwork")
-                }
-
-                override fun onUnavailable() {
-                    super.onUnavailable()
-                    Log.d("AdditionalNetwork", "onUnavailable")
-                }
+                connMgr.requestNetwork(
+                    request,
+                    requestNetworkCallback,
+                    Handler(Looper.getMainLooper()),
+                    25000
+                )
             }
-
-            connMgr.requestNetwork(
-                request,
-                requestNetworkCallback,
-                Handler(Looper.getMainLooper()),
-                25000
-            )
         }
 
         findViewById<Button>(R.id.register_network).setOnClickListener {
             val specifier = WifiNetworkSpecifier.Builder()
-                .setSsid("ONE X2 JU3Y9S.OSC")
-                .setWpa2Passphrase("88888888")
+                //.setSsid("ONE X2 JU3Y9S.OSC")
+                //.setWpa2Passphrase("88888888")
+                .setSsid("THETAYN14100547.OSC")
+                .setWpa2Passphrase("14100547")
                 .build()
 
             val request = NetworkRequest.Builder()
@@ -240,15 +250,32 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.bind_iot).setOnClickListener {
             iotNetwork?.let {
-                Log.d("bindProcess","BindProcess To Iot")
+                Log.d("bindProcess", "BindProcess To Iot")
                 connMgr.bindProcessToNetwork(it)
             }
         }
 
         findViewById<Button>(R.id.bind_mobile).setOnClickListener {
             mobileNetwork?.let {
-                Log.d("bindProcess","BindProcess To Mobile")
+                Log.d("bindProcess", "BindProcess To Mobile")
                 connMgr.bindProcessToNetwork(it)
+            }
+        }
+
+        findViewById<Button>(R.id.network_capability).setOnClickListener {
+            connMgr.activeNetwork?.let { network ->
+                printNetworkInfo(network, "activeNetwork")
+                val capabilities = connMgr.getNetworkCapabilities(network)
+                val hasInternet =
+                    capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                Log.d("HAS_INTERNET", "has internet ? : $hasInternet")
+            }
+            connMgr.boundNetworkForProcess?.let { network ->
+                printNetworkInfo(network, "activeNetwork")
+                val capabilities = connMgr.getNetworkCapabilities(network)
+                val hasInternet =
+                    capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                Log.d("HAS_INTERNET", "has internet ? : $hasInternet")
             }
         }
     }
@@ -296,5 +323,24 @@ class MainActivity : AppCompatActivity() {
                     "\nisConnectedOrConnecting: ${info?.isConnectedOrConnecting}" +
                     "\nState : ${info?.state}"
         )
+    }
+
+    fun isInternetReachable(): Boolean {
+        try {
+            // google site has a very good SLA, https://en.wikipedia.org/wiki/Service-level_agreement
+            val connection =
+                URL("https://www.google.com").openConnection() as HttpURLConnection
+            connection.setRequestProperty("User-Agent", "Test")
+            connection.setRequestProperty("Connection", "close")
+            connection.connectTimeout = 1500 // configurable
+            connection.connect()
+            Log.d("Reachable", "isInternetReachable : ${(connection.responseCode == 200)}")
+            return (connection.responseCode == 200)
+        } catch (e: IOException) {
+            Log.e("Reachable", "Error checking internet connection", e)
+        }
+
+        Log.d("Reachable", "hasInternetConnected: false")
+        return false
     }
 }

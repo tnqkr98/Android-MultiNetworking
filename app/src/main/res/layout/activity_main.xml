@@ -100,4 +100,13 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/request_network" />
 
+    <Button
+        android:id="@+id/network_capability"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="network capability"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/bind_mobile" />
+
 </androidx.constraintlayout.widget.ConstraintLayout>
