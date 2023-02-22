@@ -2,12 +2,16 @@ package com.example.networktest
 
 import android.content.Context
 import android.net.*
+import android.net.wifi.WifiManager
 import android.net.wifi.WifiNetworkSpecifier
+import android.net.wifi.WifiNetworkSuggestion
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.widget.Button
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,7 +42,7 @@ class MainActivity : AppCompatActivity() {
                     "DefaultNetwork",
                     "onAvailable Network : ${network.networkHandle}"
                 )
-                printNetworkInfo(network, "DefaultNetwork")
+                //printNetworkInfo(network, "DefaultNetwork")
             }
 
             override fun onLost(network: Network) {
@@ -55,11 +59,11 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.get_all_network).setOnClickListener {
             // API 29 이후부터 deprecated
             connMgr.allNetworks.iterator().forEach {
-                printNetworkInfo(it, "All Network")
+                //printNetworkInfo(it, "All Network")
             }
 
             connMgr.activeNetwork?.let {
-                printNetworkInfo(it, "Active Network")
+                //printNetworkInfo(it, "Active Network")
                 Log.d(
                     "Active Network",
                     "connMgr.isActiveNetworkMetered :${connMgr.isActiveNetworkMetered}"
@@ -68,43 +72,44 @@ class MainActivity : AppCompatActivity() {
 
             Log.d("Bound Network", "Bound Network : ${connMgr.boundNetworkForProcess}")
             connMgr.boundNetworkForProcess?.let {
-                printNetworkInfo(it, "Bound Network")
+                //printNetworkInfo(it, "Bound Network")
             }
         }
 
 
         findViewById<Button>(R.id.request_network).setOnClickListener {
-            CoroutineScope(Dispatchers.IO).launch {
-                val specifier = WifiNetworkSpecifier.Builder()
-                    .setSsid("THETAYN14100547.OSC")
-                    .setWpa2Passphrase("14100547")
-                    //.setSsid("ONE X2 JU3Y9S.OSC")
-                    //.setWpa2Passphrase("88888888")
-                    .build()
+            //removeSsid("THETAYN14100547.OSC","14100547")
 
-                val request = NetworkRequest.Builder()
-                    .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
-                    .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                    .setNetworkSpecifier(specifier)
-                    .build()
+            val specifier = WifiNetworkSpecifier.Builder()
+                .setSsid("THETAYN14100547.OSC")
+                .setWpa2Passphrase("14100547")
+                //.setSsid("ONE R XUFKFW.OSC")
+                //.setWpa2Passphrase("88888888")
+                .build()
 
-                /*val request2 = NetworkRequest.Builder()
+            val request = NetworkRequest.Builder()
+                .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+                .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .setNetworkSpecifier(specifier)
+                .build()
+
+            /*val request2 = NetworkRequest.Builder()
                 .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
                 .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
                 .addTransportType(NetworkCapabilities.TRANSPORT_CELLULAR)
                 .build()*/
 
-                requestNetworkCallback = object : ConnectivityManager.NetworkCallback() {
-                    override fun onAvailable(network: Network) {
-                        super.onAvailable(network)
-                        iotNetwork = network
-                        Log.d(
-                            "AdditionalNetwork",
-                            "onAvailable Network : ${network.networkHandle}"
-                        )
+            requestNetworkCallback = object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    super.onAvailable(network)
+                    iotNetwork = network
+                    Log.d(
+                        "AdditionalNetwork",
+                        "onAvailable Network : ${network.networkHandle}"
+                    )
 
-                        printNetworkInfo(network, "AdditionalNetwork")
-                        /*CoroutineScope(Dispatchers.IO).launch {
+                    //printNetworkInfo(network, "AdditionalNetwork")
+                    /*CoroutineScope(Dispatchers.IO).launch {
                         withContext(Dispatchers.IO) {
                             val conn =
                                 network.openConnection(URL("http://192.168.1.1:80/osc/info")) as HttpURLConnection
@@ -125,35 +130,37 @@ class MainActivity : AppCompatActivity() {
                             Log.d("response", response.toString())
                         }
                     }*/
-                    }
-
-                    override fun onLost(network: Network) {
-                        super.onLost(network)
-                        Log.d("AdditionalNetwork", "onLost Network : ${network.networkHandle}")
-                        printNetworkInfo(network, "AdditionalNetwork")
-                    }
-
-                    override fun onUnavailable() {
-                        super.onUnavailable()
-                        Log.d("AdditionalNetwork", "onUnavailable")
-                    }
                 }
 
+                override fun onLost(network: Network) {
+                    super.onLost(network)
+                    Log.d("AdditionalNetwork", "onLost Network : ${network.networkHandle}")
+                    //printNetworkInfo(network, "AdditionalNetwork")
+                }
+
+                override fun onUnavailable() {
+                    super.onUnavailable()
+                    Log.d("AdditionalNetwork", "onUnavailable")
+                }
+            }
+
+            //val handler = Handler(Looper.getMainLooper())
+            //CoroutineScope(Dispatchers.IO).launch {
                 connMgr.requestNetwork(
                     request,
                     requestNetworkCallback,
-                    Handler(Looper.getMainLooper()),
+             //       handler,
                     25000
                 )
-            }
+            //}
         }
 
         findViewById<Button>(R.id.register_network).setOnClickListener {
             val specifier = WifiNetworkSpecifier.Builder()
-                //.setSsid("ONE X2 JU3Y9S.OSC")
+                //.setSsid("ONE X2 XUFKFW.OSC")
                 //.setWpa2Passphrase("88888888")
-                .setSsid("THETAYN14100547.OSC")
-                .setWpa2Passphrase("14100547")
+                //.setSsid("THETAYN14100547.OSC")
+                //.setWpa2Passphrase("14100547")
                 .build()
 
             val request = NetworkRequest.Builder()
@@ -171,13 +178,13 @@ class MainActivity : AppCompatActivity() {
                         "onAvailable Network : ${network.networkHandle}"
                     )
 
-                    printNetworkInfo(network, "AdditionalNetwork")
+                    //printNetworkInfo(network, "AdditionalNetwork")
                 }
 
                 override fun onLost(network: Network) {
                     super.onLost(network)
                     Log.d("AdditionalNetwork", "onLost Network : ${network.networkHandle}")
-                    printNetworkInfo(network, "AdditionalNetwork")
+                    //printNetworkInfo(network, "AdditionalNetwork")
                 }
 
                 override fun onUnavailable() {
@@ -189,7 +196,7 @@ class MainActivity : AppCompatActivity() {
             connMgr.registerNetworkCallback(
                 request,
                 requestNetworkCallback,
-                Handler(Looper.getMainLooper()),
+                //Handler(Looper.getMainLooper()),
             )
         }
 
@@ -232,7 +239,7 @@ class MainActivity : AppCompatActivity() {
                     override fun onAvailable(network: Network) {
                         super.onAvailable(network)
                         Log.d("MobileNetwork", "onAvailable")
-                        printNetworkInfo(network, "MobileNetwork")
+                        //printNetworkInfo(network, "MobileNetwork")
                         mobileNetwork = network
                     }
 
@@ -264,14 +271,14 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.network_capability).setOnClickListener {
             connMgr.activeNetwork?.let { network ->
-                printNetworkInfo(network, "activeNetwork")
+                //printNetworkInfo(network, "activeNetwork")
                 val capabilities = connMgr.getNetworkCapabilities(network)
                 val hasInternet =
                     capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
                 Log.d("HAS_INTERNET", "has internet ? : $hasInternet")
             }
             connMgr.boundNetworkForProcess?.let { network ->
-                printNetworkInfo(network, "activeNetwork")
+                //printNetworkInfo(network, "activeNetwork")
                 val capabilities = connMgr.getNetworkCapabilities(network)
                 val hasInternet =
                     capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
@@ -280,6 +287,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
     private fun printNetworkInfo(network: Network, tag: String) {
         // API 31 level 이상 부터 사용가능
         val capability: NetworkCapabilities? = connMgr.getNetworkCapabilities(network)
@@ -342,5 +350,18 @@ class MainActivity : AppCompatActivity() {
 
         Log.d("Reachable", "hasInternetConnected: false")
         return false
+    }
+
+
+    @RequiresApi(Build.VERSION_CODES.R)
+    private fun removeSsid(ssid: String, pass: String) {
+        /*val suggestion = WifiNetworkSuggestion.Builder()
+            .setSsid(ssid)
+            .setWpa2Passphrase(pass)
+            .build()*/
+        val wifiManager = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
+        /*val sList = ArrayList<WifiNetworkSuggestion>()
+        sList.add(suggestion)*/
+        wifiManager.removeNetworkSuggestions(wifiManager.networkSuggestions)
     }
 }
