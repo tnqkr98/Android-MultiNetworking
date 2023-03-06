@@ -2,20 +2,16 @@ package com.example.networktest
 
 import android.content.Context
 import android.net.*
+import android.net.wifi.WifiInfo
 import android.net.wifi.WifiManager
 import android.net.wifi.WifiNetworkSpecifier
-import android.net.wifi.WifiNetworkSuggestion
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.widget.Button
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
@@ -33,28 +29,38 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        requestPermissions(
+            arrayOf(
+                android.Manifest.permission.ACCESS_FINE_LOCATION,
+                android.Manifest.permission.ACCESS_WIFI_STATE,
+            ),
+            123
+        )
 
-        connMgr = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        connMgr.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                super.onAvailable(network)
-                Log.d(
-                    "DefaultNetwork",
-                    "onAvailable Network : ${network.networkHandle}"
-                )
-                //printNetworkInfo(network, "DefaultNetwork")
-            }
+        connMgr = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
+        connMgr.registerDefaultNetworkCallback(
+            @RequiresApi(Build.VERSION_CODES.S)
+            object :
+                ConnectivityManager.NetworkCallback(FLAG_INCLUDE_LOCATION_INFO) {
+                override fun onAvailable(network: Network) {
+                    super.onAvailable(network)
+                    Log.d(
+                        "DefaultNetwork",
+                        "onAvailable Network : ${network.networkHandle}"
+                    )
+                    //printNetworkInfo(network, "DefaultNetwork")
+                }
 
-            override fun onLost(network: Network) {
-                super.onLost(network)
-                Log.d("DefaultNetwork", "onLost Network : ${network.networkHandle}")
-            }
+                override fun onLost(network: Network) {
+                    super.onLost(network)
+                    Log.d("DefaultNetwork", "onLost Network : ${network.networkHandle}")
+                }
 
-            override fun onUnavailable() {
-                super.onUnavailable()
-                Log.d("DefaultNetwork", "onUnavailable")
-            }
-        })
+                override fun onUnavailable() {
+                    super.onUnavailable()
+                    Log.d("DefaultNetwork", "onUnavailable")
+                }
+            })
 
         findViewById<Button>(R.id.get_all_network).setOnClickListener {
             // API 29 이후부터 deprecated
@@ -146,12 +152,12 @@ class MainActivity : AppCompatActivity() {
 
             //val handler = Handler(Looper.getMainLooper())
             //CoroutineScope(Dispatchers.IO).launch {
-                connMgr.requestNetwork(
-                    request,
-                    requestNetworkCallback,
-             //       handler,
-                    25000
-                )
+            connMgr.requestNetwork(
+                request,
+                requestNetworkCallback,
+                //       handler,
+                25000
+            )
             //}
         }
 
@@ -285,6 +291,12 @@ class MainActivity : AppCompatActivity() {
                 Log.d("HAS_INTERNET", "has internet ? : $hasInternet")
             }
         }
+
+        findViewById<Button>(R.id.get_ssid).setOnClickListener {
+            CoroutineScope(Dispatchers.IO).launch {
+                getCurrentWifiSsid(applicationContext)
+            }
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.R)
@@ -363,5 +375,40 @@ class MainActivity : AppCompatActivity() {
         /*val sList = ArrayList<WifiNetworkSuggestion>()
         sList.add(suggestion)*/
         wifiManager.removeNetworkSuggestions(wifiManager.networkSuggestions)
+    }
+
+    private fun getCurrentWifiSsid(context: Context) {
+        if (Build.VERSION_CODES.S > Build.VERSION.SDK_INT) {
+            val wifiManager = context.getSystemService(WIFI_SERVICE) as WifiManager
+            val wifiInfo = wifiManager.connectionInfo
+
+            Log.d("GET_SSID", "get ssid : ${wifiInfo.ssid}")
+            //return wifiInfo.ssid
+        }
+
+        val networkRequest = NetworkRequest.Builder()
+            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+            .build()
+
+        val connMgr = context.getSystemService(ConnectivityManager::class.java)
+
+        val callback = @RequiresApi(Build.VERSION_CODES.S)
+        object :
+                ConnectivityManager.NetworkCallback(FLAG_INCLUDE_LOCATION_INFO) {
+                override fun onCapabilitiesChanged(
+                    network: Network,
+                    networkCapabilities: NetworkCapabilities
+                ) {
+                    super.onCapabilitiesChanged(network, networkCapabilities)
+
+                    val info = networkCapabilities.transportInfo as WifiInfo
+                    Log.d("GET_SSID", "get ssid : ${info.ssid}")
+                }
+
+            }
+
+        connMgr.registerNetworkCallback(networkRequest, callback)
+
+        return
     }
 }
